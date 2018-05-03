@@ -4,7 +4,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-public class Bingo {
+public class BingoV2 {
     public static final int CONTINUATION = 0;
     private static boolean BINGO = false;
     private static boolean LAST_ONE = false;
