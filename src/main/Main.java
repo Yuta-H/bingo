@@ -2,11 +2,15 @@ package main;
 
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 public class Main {
 
-    private static final int CONTINUATION = 0;
-    private static boolean lastOne = false;
+    public static final int CONTINUATION = 0;
+    private static boolean BINGO = false;
+    private static boolean LAST_ONE = false;
 
 
     /**
@@ -17,46 +21,45 @@ public class Main {
     public static void main(String[] args) {
         List<List<String>> list = createNumbers();
         List<Integer> num = getRandomNumbers();
+        List<String> winningList = new ArrayList<>();
 
-        //出力
+        //初回出力
         firstAnnouncement(list);
         list.get(2).set(2, "  ");
         Scanner scan = new Scanner(System.in);
 
-
         int resultCount = 0;
-        int bingoFlg = 0;
-        String winningList = "";
         boolean fin = true;
         while (fin) {
             String input = scan.nextLine();
             if (input != null) {
 
-                // 現在のターン数、当選番号、当選結果を出力
-                winningList = winningList.concat(String.valueOf(num.get(resultCount)) + ",");
-                StringBuffer winning = new StringBuffer(winningList);
-                int lastIndex = winning.lastIndexOf(",");
+                //当選結果を結合
+                winningList.add(num.get(resultCount).toString());
+                StringJoiner join = new StringJoiner(",");
+                winningList.stream().forEach(e -> join.add(e));
 
+                // 現在のターン数、当選番号、当選結果を出力
                 System.out.println(resultCount + 1 + "ターン目");
                 System.out.println("現在の当選結果は " + num.get(resultCount) + " 番です");
-                System.out.println("今までの当選結果：" + winning.deleteCharAt(lastIndex));
+                System.out.println("今までの当選結果：" + join.toString());
                 System.out.println();
 
                 // 途中結果を出力
                 announcement(list, num.get(resultCount));
 
                 // 判定結果で終了か継続か
-                bingoFlg = judgment(list);
+                judgment(list);
 
                 System.out.println();
 
                 //ビンゴなら終了
                 //リーチなら出力
-                if(bingoFlg == 2){
+                if(BINGO){
                     System.out.println("ビンゴ！！");
                     fin = false;
                 }
-                if(lastOne && !(bingoFlg == 2)){
+                if(LAST_ONE && !BINGO){
                     System.out.println("リーチ！！");
                 }
                 resultCount++;
@@ -73,17 +76,17 @@ public class Main {
     private static void firstAnnouncement(List<List<String>> list) {
 
         list.get(2).set(2, "W");
-        for (List<String> res : list) {
+        list.stream().forEach(l ->{
             System.out.print("|");
-            for (String str : res) {
-                if (str.length() < 2) {
-                    str += " ";
+            l.stream().forEach(s -> {
+                if(s.length() < 2){
+                    s += " ";
                 }
-                System.out.print(str);
+                System.out.print(s);
                 System.out.print("|");
-            }
+            });
             System.out.println();
-        }
+        });
     }
 
     /**
@@ -93,24 +96,22 @@ public class Main {
      */
     private static void announcement(List<List<String>> list, int number) {
 
-        int columnCount =0;
-        for (List<String> res : list) {
-            System.out.print("|");
-            for (String str : res) {
-                if (str.length() < 2) {
-                    str += " ";
-                }
-                if (str.equals(String.valueOf(number))) {
-                    str = "  ";
-                    res.set(columnCount,"  ");
-                }
-                System.out.print(str);
-                System.out.print("|");
-                columnCount++;
+
+        list.stream().forEach(strings -> {
+            if (strings.contains(String.valueOf(number))) {
+                strings.set(strings.indexOf(String.valueOf(number)), "  ");
             }
-            columnCount = 0;
+        });
+        list.stream().forEach(l -> {
+            System.out.print("|");
+            l.stream().forEach(s ->  {
+                if(s.length() < 2){
+                    s += " ";
+                }
+                System.out.print(s + "|");
+            });
             System.out.println();
-        }
+        });
     }
 
     /**
@@ -118,77 +119,62 @@ public class Main {
      * @param list
      * @return
      */
-    private static int judgment(List<List<String>> list) {
+    private static void judgment(List<List<String>> list) {
+
 
         //横判定
-        int sideCount = 0;
-        for (List<String> res : list) {
-            for(String column: res){
-                if(column.equals("  ")){
-                    sideCount++;
-                }
-                if(sideCount == 5) {
-                    return 2;
-                }
-            }
-            if(sideCount == 4){
-                lastOne = true;
-            }
-            sideCount = 0;
-        }
+        list.stream().forEach(l->{
+           Boolean bingo = l.stream().filter(s -> s.equals("  ")).count() == 5;
+           if (bingo){
+               BINGO = true;
+           }
+           Boolean lastOne = l.stream().filter(s -> s.equals("  ")).count() == 4;
+           if (lastOne){
+               LAST_ONE = true;
+           }
+        });
+
         //縦判定
-        int heightCount = 0;
-        for (int length = 0; length < list.size(); length++) {
-            for (List<String> res : list) {
-                if(res.get(length).equals("  ")){
-                    heightCount++;
+        IntStream.rangeClosed(0, 4).forEach(i -> {
+
+            List<Boolean> bingo = new ArrayList<>();
+
+            list.stream().forEach( a -> {
+                if(a.get(i) == "  ") {
+                    bingo.add(true);
                 }
-                if(heightCount == 5) {
-                    return 2;
+                if(bingo.size() == 4) {
+                    LAST_ONE = true;
                 }
-            }
-            if(heightCount == 4){
-                lastOne = true;
-            }
-            heightCount = 0;
-        }
-        return CONTINUATION;
+                if(bingo.size() == 5) {
+                    BINGO = true;
+                }
+            });
+        });
     }
 
     /**
      * ランダムな数字のリストを生成(5×5)
      * @return
      */
-    private static List<List<String>> createNumbers() {
+    private static List<List<String>> createNumbers () {
 
-        List<List<String>> sheet = new ArrayList<>();
+        List<List<String>> sheet = Arrays.asList(new ArrayList<>(),new ArrayList<>(),new ArrayList<>(),new ArrayList<>(),new ArrayList<>());
         List<Integer> numbers = getNumbers();
-        List<String> rows1 = new ArrayList<>();
-        List<String> rows2 = new ArrayList<>();
-        List<String> rows3 = new ArrayList<>();
-        List<String> rows4 = new ArrayList<>();
-        List<String> rows5 = new ArrayList<>();
-        int count = 0;
-        for (int i : numbers) {
-            count++;
-            if (count <= 5) {
-                rows1.add(String.valueOf(i));
-            } else if (count <= 10) {
-                rows2.add(String.valueOf(i));
-            } else if (count <= 15) {
-                rows3.add(String.valueOf(i));
-            } else if (count <= 20) {
-                rows4.add(String.valueOf(i));
-            } else {
-                rows5.add(String.valueOf(i));
-            }
-        }
-        sheet.add(rows1);
-        sheet.add(rows2);
-        sheet.add(rows3);
-        sheet.add(rows4);
-        sheet.add(rows5);
 
+            numbers.stream().forEach(integer -> {
+                if(numbers.indexOf(integer) < 5){
+                    sheet.get(0).add(integer.toString());
+                }else if(numbers.indexOf(integer) < 10){
+                    sheet.get(1).add(integer.toString());
+                }else if(numbers.indexOf(integer) < 15){
+                    sheet.get(2).add(integer.toString());
+                }else if(numbers.indexOf(integer) < 20){
+                    sheet.get(3).add(integer.toString());
+                }else {
+                    sheet.get(4).add(integer.toString());
+                }
+            });
         return sheet;
     }
 
@@ -197,15 +183,10 @@ public class Main {
      * 1〜99までのランダムな数字を生成
      * @return
      */
-    private static List<Integer> getRandomNumbers() {
+    private static List<Integer> getRandomNumbers () {
 
-        List<Integer> numbers = new ArrayList<>();
-
-        for (int i = 1; i < 100; i++) {
-            numbers.add(i);
-        }
+        List<Integer> numbers = IntStream.range(1,99).boxed().collect(Collectors.toList());
         Collections.shuffle(numbers);
-
 
         return numbers;
     }
@@ -214,17 +195,9 @@ public class Main {
      * シートのサイズ分のランダムな番号を抜粋
      * @return
      */
-    public static List<Integer> getNumbers() {
-        List<Integer> result = new ArrayList<>();
+    public static List<Integer> getNumbers () {
 
-        int count = 0;
-        for (int i : getRandomNumbers()) {
-            result.add(i);
-            count++;
-            if (count == 25) {
-                break;
-            }
-        }
+        List<Integer> result = getRandomNumbers().stream().filter(i -> i <= 25).collect(Collectors.toList());
         return result;
     }
 }
